@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+       <script type="module">
+         /* 
+         * MODULE 1: UI / Tab Controller 
+         * Demonstrates: Arrow functions, DOM Manipulation, Event Handling
+         */
+        const tabs = document.querySelectorAll('.tab-btn');
+        const sections = document.querySelectorAll('.section');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                sections.forEach(s => s.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.target).classList.add('active');
+            });
+        });
+
+        /* 
+         * MODULE 2: Weather Application
+         * Demonstrates: Async/Await, Fetch API, Destructuring, Template Literals, Error Handling
+         */
+        const weatherForm = document.getElementById('weather-form');
+        const weatherInput = document.getElementById('weather-input');
+        const weatherOutput = document.getElementById('weather-output');
+
+        // Helper to translate weather codes to text
+        const getWeatherCondition = (code) => {
+            const codes = { 0: 'Clear Sky', 1: 'Mainly Clear', 2: 'Partly Cloudy', 3: 'Overcast', 45: 'Fog', 51: 'Drizzle', 61: 'Rain', 71: 'Snow', 95: 'Thunderstorm' };
+            return codes[code] || 'Unknown Conditions';
+        };
+
+        const fetchWeather = async (city) => {
+            weatherOutput.innerHTML = `<div class="loader">Fetching data...</div>`;
+            
+            try {
+                // Step 1: Geocoding (City Name -> Coordinates)
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=Berlin&count=10&language=en&format=json`);
+                if (!geoRes.ok) throw new Error('Network response was not ok');
+                const geoData = await geoRes.json();
+                
+                if (!geoData.results || geoData.results.length === 0) {
+                    throw new Error('City not found. Please try a different name.');
+                }
+
+                // Destructuring the geographical data
+                const { latitude, longitude, name, country } = geoData.results[0];
+
+                // Step 2: Fetching Current Weather using coordinates
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m`);
+                const weatherData = await weatherRes.json();
+
+                // Destructuring nested API response
+                const { 
+                    temperature_2m: temp, 
+                    relative_humidity_2m: humidity, 
+                    wind_speed_10m: wind, 
+                    weather_code: code 
+                } = weatherData.current;
+
+                // Dynamic UI Rendering using Template Literals
+                weatherOutput.innerHTML = `
+                    <div class="weather-card">
+                        <h2>${name}, ${country}</h2>
+                        <div class="weather-temp">${temp}°C</div>
+                        <h3 style="color: var(--primary)">${getWeatherCondition(code)}</h3>
+                        
+                        <div class="weather-details">
+                            <div class="detail-item">
+                                <p>Humidity</p>
+                                <h3>${humidity}%</h3>
+                            </div>
+                            <div class="detail-item">
+                                <p>Wind Speed</p>
+                                <h3>${wind} km/h</h3>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } 
+            catch (error) {
+                // Graceful Error Handling
+                weatherOutput.innerHTML = `<div class="error">${error.message}</div>`;
+            }
+
+        };
+
+        weatherForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            fetchWeather(weatherInput.value.trim());
+        });
+
+        /* 
+         * MODULE 3: Movie Search Application
+         * Demonstrates: Array Mapping, Optional Chaining, Advanced DOM updates
+         */
+        const moviesForm = document.getElementById('movies-form');
+        const moviesInput = document.getElementById('movies-input');
+        const moviesOutput = document.getElementById('movies-output');
+
+        const fetchMovies = async (query) => {
+            moviesOutput.innerHTML = `<div class="loader" style="grid-column: 1 / -1;">Searching database...</div>`;
+            
+            try {
+                // Fetching from TVMaze API (Public, No Key Required)
+                const response = await fetch(`http://img.omdbapi.com/?apikey=[yourkey]&`);
+                if (!response.ok) throw new Error('Failed to fetch movie data.');
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    throw new Error('No movies or shows found for that query.');
+                }
+
+                // Render UI based on mapped API response arrays
+                moviesOutput.innerHTML = data.map(({ show }) => {
+                    // Destructuring with fallbacks and optional chaining
+                    const { name, premiered, rating, image } = show;
+                    const posterUrl = image?.medium || 'https://via.placeholder.com/210x295/0f172a/6366f1?text=No+Poster';
+                    const releaseYear = premiered ? premiered.split('-')[0] : 'N/A';
+                    const showRating = rating?.average ? `⭐ ${rating.average}/10` : 'Unrated';
+
+                    return `
+                        <div class="movie-card">
+                            <img src="${posterUrl}" alt="${name}" class="movie-poster">
+                            <div class="movie-info">
+                                <h3 class="movie-title">${name}</h3>
+                                <div class="movie-meta">
+                                    <span>📅 ${releaseYear}</span>
+                                    <span>${showRating}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join(''); // Convert array of HTML strings back to a single string
+
+            } catch (error) {
+                moviesOutput.innerHTML = `<div class="error" style="grid-column: 1 / -1;">${error.message}</div>`;
+            }
+        };
+
+        moviesForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            fetchMovies(moviesInput.value.trim());
+        });
+
+    </script>
+</body>
+</html>
